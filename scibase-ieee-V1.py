@@ -1,3 +1,12 @@
+'''
+HOW IT WORKS:-
+---> The script starts from main class. It first gets source of the article. Every article has json_data with minimal info stored in it's source. It's present in global.document.metadata tag.
+     The data is scraped from it. That data is passed into the functions:- get_authors(),get_issn() etc. Regular Expression is used to scrape.
+---> The citations are loaded dynamically. So we use the function "load_citation()" to load all the citation. Then get the page source once all the citations are loaded.We then use Beautiful soup to
+     loop through all the citations and print it. The function "get_citation()" does the above said task.
+---> For now the output comes on terminal. First cd into the directory where the file is stored. Direct the output from terminal to a file using the following command in terminal:-
+     $python3 scibase-ieee-V1.py > file_name.json
+'''
 import bs4
 from bs4 import BeautifulSoup
 import selenium
@@ -12,13 +21,17 @@ from lxml.cssselect import CSSSelector
 from collections import OrderedDict
 
 citationCount = 0
-#INITIALIZE THE BROWSER
-browser = webdriver.Firefox();
+#INITIALIZE THE BROWSER.
+browser = webdriver.PhantomJS();
+#USE THE FOLLOWING IF NO PHANTOMJS. NEED TO HAVE GECKO DRIVER FOR THE BELOW.
+#browser = webdriver.Firefox();
 
+#Article Link
 def get_article_link():
     article_link = "http://ieeexplore.ieee.org/document/6740844/citations?anchor=anchor-paper-citations-ieee&ctx=citations"
     return(article_link)
 
+#Get Respons -------CHANGES TO BE DONE.ADD THE CASE WHERE THE CONNECTION IS LOST.
 def get_response(url):
     try:
         browser.get(url)
