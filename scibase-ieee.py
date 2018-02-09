@@ -10,19 +10,20 @@ import re
 import json
 from lxml import html
 from lxml.cssselect import CSSSelector
+from collections import OrderedDict
 
 true = "true"
 false = "false"
 
-browser= webdriver.PhantomJS();
-article_link= "http://ieeexplore.ieee.org/document/1262027"
+
+article_link= "http://ieeexplore.ieee.org/document/7546538/citations?anchor=anchor-paper-citations-ieee&ctx=citations"
 
 
 #Initialize the Browser
 browser = webdriver.PhantomJS();
 browser.get(article_link)
 WebDriverWait(browser,20)
-wait = WebDriverWait(browser,15)
+wait = WebDriverWait(browser,30)
 citations_present = True
 
 page_source = browser.page_source
@@ -36,67 +37,80 @@ text = open("/home/theprophet/Atom/Scibase/article-page-source.txt")
 text = str(text.read())
 '''
 
+#json_dumps converts the data into unordered list so use OrderedDict to reserve the order
 metadata = re.findall(r'global\.document\.metadata=(\{[\s\S]+\})\;',soup_str,re.DOTALL)
-json_data = json.dumps(json.loads(metadata[0]))
+json_data = json.dumps(json.loads(metadata[0],object_pairs_hook=OrderedDict))
+'''
+##I think the following lines are unnecessary,since we have already stored the file in metadata
 file_object = open("sourcePage_from_phantomjsBrowser2.txt","w")
 file_object.write(json_data)
 file_object.close
+'''
+##print(json_data
 
-'''''''''
 
 #In order to avoid error where we have no issn
 try:
-    issn = re.findall(r'("issn":[\s\[\{\"\w\:\-\,\}]*])',json_data,re.DOTALL)
-    print("{"+issn[0]+",")
+    issn = re.findall(r'(\"issn\"\:[\s\S]+?\,)\s\"article',json_data,re.DOTALL)
+    print("{"+issn[0])
 except:
     print('{"issn":"none",')
 
 #Adding ? to + in [\s\S]+? make the + which is a greedy operator lazy i.e it will try to match as few times as possible
 #[\s\S] means any space or non space character. It matches all characters
 try:
-    abstract = re.findall(r'(\s\"abstract\"\:[\s\S]+?\.\"\,)',json_data,re.DOTALL)
+    abstract = re.findall(r'(\"abstract\"\:[\s\S]+?\.\"\,)\s',json_data,re.DOTALL)
     print(abstract[0])
 except:
-    abstract = re.findall(r'(\s\"abstract\"\:[\s\S]+?\"\,)',json_data,re.DOTALL)
-    print(abstract[0])
+    print('"abstract":"null",')
 
 #METRICS
-metrics = re.findall(r'("metrics":[\s\{\w\"\:\,]*})',json_data,re.DOTALL)
-print(metrics[0]+",")
+try:
+    metrics = re.findall(r'(\"metrics\"\:[\s\S]+?\}\,)\s\"',json_data,re.DOTALL)
+    print(metrics[0])
+except:
+    print('"metrics":"null",')
 
 #DOI
 #Problem with the abstract for the link http://ieeexplore.ieee.org/document/6546378/
 try:
-    doi = re.findall(r'(\"doi\"\:[\s\S]+?\"\,)',json_data,re.DOTALL)
+    doi = re.findall(r'(\"doi\"\:[\s\S]+?\"\,)\s\"',json_data,re.DOTALL)
     print(doi[0])
 except:
-    print('"abstract":"none",')
+    print('"doi":"none",')
 
 #TITLE
-title = re.findall(r'(\"title\"\:[\s\S]+?\"\,)',json_data,re.DOTALL)
-print(title[0])
+try:
+    title = re.findall(r'(\"title\"\:[\s\S]+?\"\,)\s\"',json_data,re.DOTALL)
+    print(title[0])
+except:
+    print('"title":"none",')
 
 #publicationTitle
-publicationTitle = re.findall(r'(\"publicationTitle\"\:[\s\S]+?\"\,)',json_data,re.DOTALL)
-print(publicationTitle[0])
-
-#We are getting the content between two keywords using regex. The () is the grouping element that gets displayed.
-t=re.findall(r'("authors":\s\[\{\"affiliation\"\:[\S\s]*)\,\s+\"isDynamicHtml\"\:',json_data,re.DOTALL)
-if(t):
-    print(t[0]+",")
-else:
-    t = re.findall(r'("authors":\s\[\{\"affiliation\"\:[\S\s]*)\,\s+\"pubLink\"\:',json_data,re.DOTALL)
-    print(t[0]+",")
+try:
+    publicationTitle = re.findall(r'(\"publicationTitle\"\:[\s\S]+?\")\,\s\"',json_data,re.DOTALL)
+    print(publicationTitle[0]+",")
+except:
+    print('"publicationTitle":"none",')
 
 
+#authors
+try:
+    authors = re.findall(r'(\"authors\"\:[\s\S]+?)\,\s\"issn',json_data,re.DOTALL)
+    print(authors[0]+",")
+except:
+    print('"authors":"none",')
+print('"citations":[')
 
 ##########################CITATIONS##################################################
 ######################################################################################################################################
-url = "http://ieeexplore.ieee.org/document/6740844/citations"
-browser = webdriver.PhantomJS();
+'''
+url = "http://ieeexplore.ieee.org/document/8264783/citations?anchor=anchor-paper-citations-ieee&ctx=citations"
+browser = webdriver.Firefox();
 browser.get(url)
 WebDriverWait(browser,20)
-wait = WebDriverWait(browser,15)
+wait = WebDriverWait(browser,30)
+'''
 citations_present = True
 
 
@@ -106,27 +120,35 @@ citations_present = True
 try:
     wait.until(EC.presence_of_element_located((By.XPATH,'//*[@id="LayoutWrapper"]/div[5]/div[3]/div/section[2]/div[2]/div[1]/div[2]/div[1]/button[1]')))
 except:
-    print("NO CITATIONS PRESENT")
+    print("null]}")
     citations_present = False
+
+
 #####################################################################################################################################################
 if(citations_present):
+
     #Clicking the view all button  of the carousel view of the citations..so that the first set of citations load up.
     #TO DO:- CHANGE THE XPATH IF THE ADVERTISEMENTS IN THE PAGE ARE PRESENT FOR THE VIEW ALL BUTTON. OR FIND A BETTER METHOD
+    '''
     try:
-        element = WebDriverWait(browser,10).until(EC.presence_of_element_located((By.XPATH,'//*[@id="6740844"]/div/div[4]/div/div[2]/a[13]')))
+        element = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR,'#anchor-paper-citations-nonieee > div.load-more-container > button > span')))
+        #element = WebDriverWait(browser,60).until(EC.presence_of_element_located((By.XPATH,'//*[@id="6740844"]/div/div[4]/div/div[2]/a[13]')))
     except:
         print ("The internet connection is slow. Please try after some time. If it persists check the script.")
         exit()
 
-    view_button = browser.find_element_by_xpath('//*[@id="6740844"]/div/div[4]/div/div[2]/a[13]')
-    view_button.click()
 
+    #view_button = browser.find_element_by_xpath('//*[@id="6740844"]/div/div[4]/div/div[2]/a[13]')
+    #view_button.click()
+    '''
     ################################################################################################
 
     #The page is now loaded with the first set of citations. Get the page source
 
     page_source = browser.page_source
     soup = BeautifulSoup(page_source,'html.parser')
+
+
 
 
     #The class of both the ieee citations and non ieee citatioin are same so we first will get the number of citation and use that numbers
@@ -142,8 +164,8 @@ if(citations_present):
     for x in range(0,length):
         try:
             temp = re.findall(r'.*IEEE\s\(\d+\)',str(num_citations[x].text))
-            temp = temp[0]
-            num_ieee_citations = re.findall(r'\d+',temp)
+            #temp = temp[0]
+            num_ieee_citations = re.findall(r'\d+',temp[0])
             num_ieee_citations = int(num_ieee_citations[0])
             num_non_ieee_citations = int(0)
 
@@ -181,31 +203,32 @@ if(citations_present):
             break
 
     #Page_source is now loaded with all the citaions.
-
+    wait
     page_source = browser.page_source
     soup = BeautifulSoup(page_source,"html.parser")
-    file_object = open("page_source_full_citations.txt","w")
+    file_object = open("page_source_full_citations1.txt","w")
     file_object.write(str(soup))
     file_object.close()
     #print(soup)
 
     #############################################################################################################################
 
-    ''''''
+    '''
     --> lxml module is used so that i can get the data using XPATH of the element. BeautifulSoup doesn't allow XPATH.
     -->Two ways here get the data :-
         1)Beautiful soup and use re to extract the data and sort them into categories.
          it but then it would lead to a problem handling errors of such long strings.
         2)Use both lxml and bs4. lxml to get the normal data and bs4 to get the extra info such as pp,year,issn and stuff.
 
-    ''''''
+    '''
 
 
 
     #Page_source is now loaded with all the citaions.
-    text = open("/home/theprophet/Atom/Scibase/page_source_full_citations.txt")
-    text = str(text.read())
-
+    #text = open("/home/theprophet/Atom/Scibase/page_source_full_citations.txt")
+    #text = str(text.read())
+    page_source = browser.page_source
+    text = str(page_source)
     soup = BeautifulSoup(text,'html.parser')
     citations_extra = soup.find_all("div",{"class":"description ng-binding"})
 
@@ -214,13 +237,12 @@ if(citations_present):
 
     ####PUTTING THEM IN JSON format
     y = 0 #needed to select the appropriate value from the soup object.
-    print('[')
     print('{"ieee-citations":[')
     for x in range(2,num_ieee_citations+2):#num_citations+2
         ieee_citations_tag = '#anchor-paper-citations-ieee > div:nth-child(' + str(x) + ') > div:nth-child(1) > div:nth-child(2) > div:nth-child(1)'
         ieee_citations = tree.cssselect(ieee_citations_tag)[0].text
 
-        ##########Authors###########
+        ##########1Authors###########
 
         try:
             ieee_citations_authors = re.findall(r'([A-Za-z\s\.\-]+)\,\s',ieee_citations,re.DOTALL)
@@ -233,6 +255,21 @@ if(citations_present):
 
         except:
             print('{"authors":["none"],')
+
+        '''
+        Alternative to the above try and except block. NOPE DONT GO WIITH IT. TRY AND EXCEPT IS BETTER.
+        if(ieee_citations_authors = re.findall(r'([A-Za-z\s\.\-]+)\,\s',ieee_citations,re.DOTALL)):
+            print('{"authors":[')
+            for z in range(0,len(ieee_citations_authors)-1):
+                print('"'+str(ieee_citations_authors[z])+'",')
+            #Printing the final author with appropriate tags
+            print('"'+str(ieee_citations_authors[len(ieee_citations_authors)-1])+'"],')
+        else:
+            print('{"authors":["none"],')
+
+
+
+        '''
         ########################CiTATION ARTICLE NAME####################################
         #There are cases when the article name is not PRESENT
         try:
@@ -377,4 +414,4 @@ if(citations_present):
         else:
             print("}")
     print(']}]}')
-'''''''''
+browser.quit()
