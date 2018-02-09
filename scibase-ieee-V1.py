@@ -6,17 +6,25 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import re
-from bs4 import BeautifulSoup
+import json
 from lxml import html
 from lxml.cssselect import CSSSelector
+from collections import OrderedDict
 
 citationCount = 0
+#INITIALIZE THE BROWSER
+browser = webdriver.Firefox();
+
+def get_article_link():
+    article_link = "http://ieeexplore.ieee.org/document/6740844/citations?anchor=anchor-paper-citations-ieee&ctx=citations"
+    return(article_link)
 
 def get_response(url):
     try:
         browser.get(url)
     except:
         print("Invalid URL")
+        exit()
 
 def get_page_source(browser):
     page_source = browser.page_source
@@ -27,11 +35,12 @@ def get_soup(browser):
     soup = BeautifulSoup(response,'html.parser')
     return soup
 
-def get_json_data(browser):
+def get_metadata(browser):
     str_soup = str(get_soup(browser))
-    metadata = re.findall(r'global\.document\.metadata=(\{[\s\S]+\})\;',soup_str,re.DOTALL)
-    json_data = json.dumps(json.loads(metadata[0],object_pairs_hook=OrderedDict))
-    return json_data
+    metadata = re.findall(r'global\.document\.metadata=(\{[\s\S]+\})\;',str_soup,re.DOTALL)
+    metadata = json.dumps(json.loads(metadata[0],object_pairs_hook=OrderedDict))
+    return(metadata)
+
 
 #Store the data from the above function in a variable and pass it
 def get_issn(json_data):
@@ -40,9 +49,10 @@ def get_issn(json_data):
         return(issn[0])
     except:
         issn = '"issn":"none",'
+        return(issn)
 
 ##Abstract
-def _abstract(json_data):
+def get_abstract(json_data):
     try:
         abstract = re.findall(r'(\"abstract\"\:[\s\S]+?\.\"\,)\s',json_data,re.DOTALL)
         return(abstract[0])
@@ -79,7 +89,7 @@ def get_title(json_data):
 ##Publication TITLE
 def get_pubTitle(json_data):
     try:
-        publTitle = re.findall(r'(\"publicationTitle\"\:[\s\S]+?\")\,\s\"',json_data,re.DOTALL)
+        pubTitle = re.findall(r'(\"publicationTitle\"\:[\s\S]+?\"\,)\s\"',json_data,re.DOTALL)
         return(pubTitle[0])
     except:
         pubTitle = '"publicationTitle":"null",'
@@ -88,27 +98,31 @@ def get_pubTitle(json_data):
 #Authors
 def get_authors(json_data):
     try:
-        authors = re.findall(r'(\"authors\"\:[\s\S]+?)\,\s\"issn',json_data,re.DOTALL)
+        authors = re.findall(r'(\"authors\"\:[\s\S]+?\,)\s\"issn',json_data,re.DOTALL)
         return(authors[0])
     except:
         authors = '"authors":"none",'
         return(authors)
 
 #Checking if the citations are present or not
-def check_citation_presence(browser):
+def check_citation_presence(metadata):
     try:
-        WebDriverWait(20,browser).until(EC.presence_of_element_located((By.XPATH,'//*[@id="LayoutWrapper"]/div[5]/div[3]/div/section[2]/div[2]/div[1]/div[2]/div[1]/button[1]')))
-        return(True)
+        check = re.findall(r'\"citationCountPaper\"\:\s([0-9]+)\,\s\"',metadata,re.DOTALL)
+        print("Inside check_citation_presence")
+        if(check > 0):
+            return(True)
+        else:
+            return(False)
     except:
         #print("null]}")
-        return(False)
+        print("INside Check_citation.. check for metadat.")
         #citations_present = False
 
 ##Number of IEEE citations
 #The position of ieee citations will either be the first or no-where
-def num_ieee_citations(citations):
+def get_num_ieee_citations(citations):
     try:
-        temp = re.findall(r'.*IEEE\s\(\d+\)',citations)
+        temp = re.findall(r'.*IEEE\s\(\d+\)',citations,re.DOTALL)
         num_ieee_citations = re.findall(r'\d+',temp[0])
         num_ieee_citations = int(num_ieee_citations[0])
         return(num_ieee_citations )
@@ -116,9 +130,9 @@ def num_ieee_citations(citations):
         return(0)
 
 ##Number of NON IEEE CITATIONS
-def num_non_ieee_citations(citations):
+def get_num_non_ieee_citations(citations):
     try:
-        temp = re.findall(r'.*IEEE\s\(\d+\)',citations)
+        temp = re.findall(r'\sOther[\s\S]+\s\(\d+\)',citations,re.DOTALL)
         num_non_ieee_citations = re.findall(r'\d+',temp[0])
         num_non_ieee_citations = int(num_non_ieee_citations[0])
         return(num_non_ieee_citations )
@@ -126,33 +140,25 @@ def num_non_ieee_citations(citations):
         return(0)
 
 ##LOAD IEEE Citations
-def load_ieee_citation(browser):
+def load_citation(browser,name):
     while True:
         try:
-            element = WebDriverWait(20,browser).until(EC.element_to_be_clickable((By.CSS_SELECTOR,'#anchor-paper-citations-ieee > div.load-more-container > button > span')))
-            view_button = browser.find_element_by_css_selector('#anchor-paper-citations-ieee > div.load-more-container > button > span')
+            element = WebDriverWait(browser,30).until(EC.element_to_be_clickable((By.CSS_SELECTOR,'#anchor-paper-citations-'+str(name)+' > div.load-more-container > button > span')))
+            view_button = browser.find_element_by_css_selector('#anchor-paper-citations-'+str(name)+' > div.load-more-container > button > span')
             view_button.click()
             continue
         except:
             return
 
-##LOAD NON IEEE CiTATION
-def load_non_ieee_citations(browser):
-        while True:
-            try:
-                element = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR,'#anchor-paper-citations-nonieee > div.load-more-container > button > span')))
-                view_button = browser.find_element_by_css_selector('#anchor-paper-citations-nonieee > div.load-more-container > button > span')
-                view_button.click()
-                continue
-            except:
-                return
+
 ################################################################
 #THE BELOW FUNCTIONS ARE FOR CITATIONS
 ##Get the content of each citation paragraph
 def get_citation_tag(x,name,tree):
+
     citations_tag = '#anchor-paper-citations-'+str(name)+' > div:nth-child(' + str(x) + ') > div:nth-child(1) > div:nth-child(2) > div:nth-child(1)'
     citations = tree.cssselect(citations_tag)[0].text
-    return(citations_tag)
+    return(citations)
 
 ##EXTRA CITATION SOUP OBJECT. GETS THE PP.,VOL, etc.
 #All the citations are under the class "description ng-binding". Here we are getting the soup list of all the citations.
@@ -185,11 +191,11 @@ def get_citation_article_name(citation_tag):
         article_name = '"article name":"'+str(citations_article_name[0])+'",'
         return(article_name)
     except:
-        article_name = '"Article Name":"none",')
+        article_name = '"Article Name":"none",'
         return(article_name)
 
 ##JOURNAL NAME
-def get_citation_journal(x,name):
+def get_citation_journal(x,name,tree):
     try:
         citations_journal_cssselector = '#anchor-paper-citations-'+str(name) +'> div:nth-child(' + str(x) +') > div:nth-child(1) > div:nth-child(2) > div:nth-child(1) > em:nth-child(1)'
         citations_journal_tag = tree.cssselect(citations_journal_cssselector)[0]
@@ -243,24 +249,26 @@ def get_citation_issn(citation):
 def get_citation_isbn(citation):
     try:
         citations_isbn = re.findall(r'ISBN\s([0-9\-A-Z]+)',citation,re.DOTALL)
-        citation_isbn = '"ISBN": "'+str(citations_isbn[0])+'",'
+        citation_isbn = '"ISBN": "'+str(citations_isbn[0])+'"'
         return(citation_isbn)
     except:
-        citation_isbn = '"ISBN":"none",'
+        citation_isbn = '"ISBN":"none"'
         return(citation_isbn)
 ##################################################################
 def get_citation(num_citations,name,tree,soup):#soup of the completely loaded page
 #The citations are first scraped using bs4 using extra_citat_info_tag. Once we get the list of all the posibile values of citations from the soup object, we loop through them.
 #The get_citation_tag is used to get the particular division where the x'th citation is present using css selector
-    citation_json = '"{"'+str(name)+'-citations":[{'
+    global citationCount
+    citation_json = '{"'+str(name)+'-citations":['
     citations_extra_info = extra_citat_info_tag(soup)
     for x in range(2,num_citations+2):
-        citation = get_citation_tag(x,name,tree)
+        citation = get_citation_tag(x,name,tree) #This gets the complete paragraph of the citation
         cit_author = get_citation_authors(citation)
         cit_article_name = get_citation_article_name(citation)
-        cit_journal_name = get_citation_journal(citation)
+        cit_journal_name = get_citation_journal(x,name,tree)
         #Getting the extra info of citations
-        cit_extra_info = citations_extra_info[citationCount++].text
+        cit_extra_info = citations_extra_info[citationCount].text
+        citationCount+=1
 
         cit_vol = get_citation_vol(cit_extra_info)
         cit_pp = get_citation_pp(cit_extra_info)
@@ -269,12 +277,80 @@ def get_citation(num_citations,name,tree,soup):#soup of the completely loaded pa
         cit_isbn = get_citation_isbn(cit_extra_info)
 
         #Making the json of the citation
-        citation_json+= cit_author + cit_article_name + cit_journal_name + cit_vol + cit_pp + cit_year + cit_issn + cit_isbn
+        citation_json+= "{"+cit_author + cit_article_name + cit_journal_name + cit_vol + cit_pp + cit_year + cit_issn + cit_isbn
 
         if( x <= num_citations): # x<= num_ieee_citations
             citation_json+= "},"
         else:
             citation_json+= "}"
 
-    citation_json+= "]},"
-    return(citation_json)     
+    if(name == "ieee"):
+        citation_json+= "]},"
+    else:
+        citation_json+= "]}"
+
+    return(citation_json)
+
+
+#GET THE JSON Data
+def get_json_data(metadata,browser):
+    json_data="{"
+    json_data+= get_issn(metadata) + get_metrics(metadata) +get_doi(metadata)
+    json_data+= get_title(metadata)+get_pubTitle(metadata)+get_abstract(metadata)+ get_authors(metadata)
+
+    json_data+='"citations":['
+
+    x = True
+    x = check_citation_presence(metadata)
+
+    if ( x == False):
+        json_data+= "null]}"
+        browser.quit();
+        return(json_data)
+    else:
+        soup = get_soup(browser)
+        num_citations = soup.find_all('h2',{'class':'document-ft-section-header ng-binding'})
+        length = len(num_citations) - 1
+        num_ieee_citations = get_num_ieee_citations(str(num_citations[0].text))
+        num_non_ieee_citations = get_num_non_ieee_citations(str(num_citations[length].text))
+
+        load_citation(browser,"ieee")
+        load_citation(browser,"nonieee")
+
+
+        #Wait for the page to load  with all citations then grab the page source
+        WebDriverWait(20,browser)
+
+        source = get_page_source(browser)
+        soup = get_soup(browser)
+
+        #Declare the tree for lxml
+        tree = html.fromstring(str(source))
+
+        json_data+= get_citation(num_ieee_citations,"ieee",tree,soup)
+        json_data+= get_citation(num_non_ieee_citations,"nonieee",tree,soup)
+
+        #Final tags of Json Data
+        json_data+= "]}"
+        return(json_data)
+
+
+##############################################################
+##MAIN FUNCTIONS
+def main():
+
+    link = get_article_link()
+    get_response(link)
+    WebDriverWait(browser,30)
+
+    #Get the JSON DATA to extract the first half
+    metadata= get_metadata(browser)
+
+
+    #Get the json data
+
+    json_data = get_json_data(metadata,browser)
+    print(json_data)
+
+if __name__ == "__main__":
+    main()
