@@ -83,4 +83,4 @@ def main():
     get_issue(url)
 
 if __name__ == "__main__":
-    main()    
+    main()
