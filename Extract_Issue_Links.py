@@ -4,8 +4,6 @@ import selenium
 import requests
 from bs4 import BeautifulSoup
 
-
-
 def get_page_source(url):
     try:
         page_source = requests.get(url)
