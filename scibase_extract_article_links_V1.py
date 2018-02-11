@@ -173,6 +173,7 @@ def store_article_url(path_list):
     '''
     for x in range(0,len(issue_link_path)):
         pointer = x
+        print("x := "+ str(pointer) )
         article = article_link_path[x]
         issue = issue_link_path[x]
 
