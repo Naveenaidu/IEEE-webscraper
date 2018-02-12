@@ -13,8 +13,13 @@ import json
 from lxml import html
 from lxml.cssselect import CSSSelector
 from collections import OrderedDict
-
+import time
+import random
 browser = webdriver.PhantomJS()
+
+global browser
+#Stores the url of all the links where the errors have occured
+errors = []
 
 ##Gets the page source
 def get_page_source(url):
@@ -123,10 +128,14 @@ def get_issue(url):
     print("Collected and stored Issue URL\n")
     links.append(article_link_path)
     links.append(issue_link_path)
+    sleep2 = random.uniform(20.5,50.5)
+    print("Sleepin for : " +str(sleep2))
+    time.sleep(sleep2)
 
     return(links)
 
 def get_number_pages_issue_url(issue_url):
+
     print("Getting the number of pages in issue_url:")
     source = (requests.get(issue_url)).text
     soup = BeautifulSoup(source,"html.parser")
@@ -146,6 +155,9 @@ def get_article_links(issue_url):
     article_link_text = ""
     pages = get_number_pages_issue_url(issue_url)
     print("pages:= " + str(pages))
+    sleep3 = random.uniform(10.5,15.5)
+    print("Sleeping for "+str(sleep3))
+    time.sleep(sleep3)
     for x in range(1,pages+1):
 
         url1 = issue_url +"&pageNumber=" + str(x)
@@ -224,7 +236,7 @@ def get_page_source_selenium(browser):
 def get_soup(browser):
     response = get_page_source_selenium(browser)
     soup = BeautifulSoup(response,'html.parser')
-    return soup
+    return(soup)
 
 def get_metadata(browser):
     print("Fetching the metadata from the page_sorce")
@@ -316,24 +328,32 @@ def check_citation_presence(metadata):
 
 ##Number of IEEE citations
 #The position of ieee citations will either be the first or no-where
-def get_num_ieee_citations(citations):
+def get_num_ieee_citations(citations,link):
+    global error;
     print("Fetching the number of IEEE citations....")
     try:
         temp = re.findall(r'.*IEEE\s\(\d+\)',citations,re.DOTALL)
         num_ieee_citations = re.findall(r'\d+',temp[0])
         num_ieee_citations = int(num_ieee_citations[0])
-        return(num_ieee_citations )
+        return(num_ieee_citations)
+    except IndexError:
+        errors.append(link)
+        return(0)
     except:
         return(0)
 
+
 ##Number of NON IEEE CITATIONS
-def get_num_non_ieee_citations(citations):
+def get_num_non_ieee_citations(citations,link):
     print("Fetching the number of NON-IEEE citations")
     try:
         temp = re.findall(r'\sOther[\s\S]+\s\(\d+\)',citations,re.DOTALL)
         num_non_ieee_citations = re.findall(r'\d+',temp[0])
         num_non_ieee_citations = int(num_non_ieee_citations[0])
         return(num_non_ieee_citations )
+    except IndexError:
+        errors.append(link)
+        return(0)
     except:
         return(0)
 
@@ -467,6 +487,13 @@ def get_citation(num_citations,name,tree,soup):#soup of the completely loaded pa
 #The get_citation_tag is used to get the particular division where the x'th citation is present using css selector
     print("Creating the json_data for the citations ....")
     global citationCount
+    if (name == "nonieee"):
+        citationCount = citationCount
+        print(citationCount)
+    else:
+        citationCount = 0
+
+
     citation_json = '{"'+str(name)+'-citations":['
     citations_extra_info = extra_citat_info_tag(soup)
     for x in range(2,num_citations+2):
@@ -500,8 +527,11 @@ def get_citation(num_citations,name,tree,soup):#soup of the completely loaded pa
     return(citation_json)
 
 
+
 #GET THE JSON Data
-def get_json_data(metadata,browser):
+def get_json_data(metadata,browser,link):
+    global citationCount
+
     print("Starting the process to get the information about the article in  json_data")
     json_data="{"
     json_data+= get_issn(metadata) + get_metrics(metadata) +get_doi(metadata)
@@ -517,38 +547,44 @@ def get_json_data(metadata,browser):
         json_data+= "null]}"
         return(json_data)
     else:
-        print("Citations Found")
-        soup = get_soup(browser)
-        num_citations = soup.find_all('h2',{'class':'document-ft-section-header ng-binding'})
-        length = len(num_citations) - 1
-        num_ieee_citations = get_num_ieee_citations(str(num_citations[0].text))
-        num_non_ieee_citations = get_num_non_ieee_citations(str(num_citations[length].text))
 
-        load_citation(browser,"ieee")
-        load_citation(browser,"nonieee")
+            print("Citations Found")
+            soup1 = get_soup(browser)
+            num_citations = soup1.find_all('h2',{'class':'document-ft-section-header ng-binding'})
+            length = len(num_citations) - 1
+            num_ieee_citations = get_num_ieee_citations(str(num_citations[0].text),link)
+            num_non_ieee_citations = get_num_non_ieee_citations(str(num_citations[length].text),link)
+
+            load_citation(browser,"ieee")
+            load_citation(browser,"nonieee")
 
 
-        #Wait for the page to load  with all citations then grab the page source
-        WebDriverWait(20,browser)
+            #Wait for the page to load  with all citations then grab the page source
+            WebDriverWait(browser,30)
 
-        source = get_page_source_selenium(browser)
-        soup = get_soup(browser)
+            source = get_page_source_selenium(browser)
+            soup = get_soup(browser)
 
-        #Declare the tree for lxml
-        tree = html.fromstring(str(source))
+            #Declare the tree for lxml
+            tree = html.fromstring(str(source))
 
-        json_data+= get_citation(num_ieee_citations,"ieee",tree,soup)
-        json_data+= get_citation(num_non_ieee_citations,"nonieee",tree,soup)
+            json_data+= get_citation(num_ieee_citations,"ieee",tree,soup)
+            print("IEEE citation data retrieved")
+            print(citationCount)
+            json_data+= get_citation(num_non_ieee_citations,"nonieee",tree,soup)
+            print("NON-IEEE citation data retrieved")
+            citationCount = 0
 
-        #Final tags of Json Data
-        json_data+= "]}"
-        return(json_data)
+            #Final tags of Json Data
+            json_data+= "]}"
+            return(json_data)
 
 
 def get_article_info(path_list,browser):
     article_pointer = 0
     article_json_path = path_list
     article_links = []
+    browser_count = 0
     for x in range(0,len(article_json_path)):
         article_count = 0
         article_pointer = x
@@ -560,28 +596,69 @@ def get_article_info(path_list,browser):
             article_links = content_file.read().splitlines()
 
         for links in article_links:
+            if(browser_count == 0):
+                print("Browser: FireFox" )
+                browser = webdriver.Firefox()
+                browser_count = 1
+            else:
+                print("Browser : PhantomJS")
+                browser = webdriver.PhantomJS()
+                browser_count = 0
+
+
             print("------------------------------------------------------------------------------")
             print("\nStarting the process to get the json_data from :- "+str(links))
             print("Reading url from:= " + str(article_link_path))
             json_data = get_article_json_data(links,browser)
             article_count+= 1
-            #json_data_path = str(article_json_path[x]) + str(article_count) + str(".json")
-            json_data_path = str(article_json_path)+"/" +str(article_count) + str(".json")
-            print("Path of storage" = json_data_path)
+            json_data_path = str(article_json_path[x])+"/" + str(article_count) + str(".json")
+            #json_data_path = str(article_json_path)+"/" +str(article_count) + str(".json")
+            print("Path of storage : " + str(json_data_path))
 
             with open(json_data_path,"w+") as data:
                 data.write(json_data)
 
+            ##Make the script Sleep
+            browser.quit()
+            sleep1 = random.uniform(1.5,2.5)
+            sleep1 = sleep1*50.3
+            print("Sleeping for : " + str(sleep1))
+            time.sleep(sleep1)
+            print("I am AWAKE!!")
+
+
+
+
 def get_article_json_data(link,browser):
 
-    get_response(link)
+    get_response(link,browser)
     print("Browser will wait for 30ms for the page to load")
-    WebDriverWait(browser,30)
+    WebDriverWait(browser,10)
     #Get the JSON DATA to extract the first half
     metadata= get_metadata(browser)
     #Get the json data
-    json_data = get_json_data(metadata,browser)
-    return(json_data)
+    json_data = get_json_data(metadata,browser,link)
+    if(json_data == str(0)):
+        json_data = get_json_data(metadata,browser,link)
+        return(json_data)
+    else:
+        #ADD A CONDITION HERE. THIS HAPPENS WHEN THERE IS INDEX ERROR
+        return(json_data)
+
+def store_directory_path(path):
+    dir_path = str(path[0]) + str("/directory_path.txt")
+    with open(dir_path,"w+") as f:
+        f.write(json.dumps(path))
+'''
+def read_directory_path():
+    path = str("/home/theprophet/Scibase1/HELLO/vol_49/issue_1/directory_path")
+    source  = open()
+'''
+def print_errors():
+    global errors
+    print("Below are the links whoose json data is not proper")
+    for x in errors:
+        print(x+"\n")
 
 def main(url):
     global citationCount
@@ -589,11 +666,18 @@ def main(url):
     #INITIALIZE THE BROWSER
     print("Starting get_issue()...")
     path_list = get_issue(url)
+    store_directory_path(path_list[0])
+    #path_list[0] contains the path where the article_links are present
+    #path_list[1] contains the path of the file which consists of issue_url
     print("\nStarting store_article_url()...\n")
     store_article_url(path_list)
+    time.sleep(100)
     print("---------------------------- GETTING THE JSON DATA --------------------------------------------------")
     print("\nStarting the function get_article_info...\n")
-    get_article_info(path_list,browser)
+    get_article_info(path_list[0],browser)
+    print("------------------Errors--------------------")
+    print_errors()
+
 
 if __name__ == "__main__":
     #url of the most recent issue of a journal'
