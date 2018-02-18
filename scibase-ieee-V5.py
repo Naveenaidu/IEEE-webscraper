@@ -1,6 +1,7 @@
 import os
 import bs4
 import re
+import sys
 import json
 import time
 import random
@@ -95,7 +96,7 @@ def get_page_source(url):
 def load_webpage(link,browser):
     connection_timeout = 180
     start_time = time.time()
-    print("Waiting for the response from the url")
+    print("\nWaiting for the response from the url")
 
     while True:
         try:
@@ -253,7 +254,7 @@ def get_article_links(issue_url):
 
 def store_article_url(browser):
 
-    global article_pointer
+    global issue_pointer
     '''
     issue_home_dir[] gives us the home directory of issue.
     issue_link_path[] gives the path from where the url of the issue can be read from.
@@ -265,7 +266,7 @@ def store_article_url(browser):
     stops at x=3. That means the script has stopped at the issue 3 of some volume. We can  find that path from issue_home_dir[x].
     So by changing the for loop range from range(x,len(issue_link_path)) we can continue from the part where we left off.
     '''
-    for x in range(article_pointer,len(issue_link_path)):
+    for x in range(issue_pointer,len(issue_link_path)):
 
         if(x%100 == 0):
             time.sleep(100)
@@ -302,7 +303,7 @@ def get_soup(browser):
 #Most part of the article data is stored in the 'global.document.metadata' of the page source. REGEX is used to scrape them.
 
 def get_metadata(browser):
-    print("Fetching the metadata from the page_source")
+    print("\n Fetching the metadata from the page source\n")
     str_soup = str(get_soup(browser))
     metadata = re.findall(r'global\.document\.metadata=(\{[\s\S]+\})\;',str_soup,re.DOTALL)
     metadata = json.dumps(json.loads(metadata[0],object_pairs_hook=OrderedDict))
@@ -398,7 +399,7 @@ def get_keywords(json_data):
 #Checking for the presence of citation
 
 def check_citation_presence(json_data):
-    print("Checking for the presence of citations")
+    print("\nChecking for the presence of citations")
     check = re.findall(r'\"citationCountPaper\"\:\s([0-9]+)\,\s\"',json_data,re.DOTALL)
     if(int(check[0]) > 0):
         return(True)
@@ -419,8 +420,7 @@ def get_num_ieee_citations(citations,link):
         return(num_ieee_citations)
     except IndexError:
         #errors.append(link)
-        print("Error at the article link : "+ str(link))
-
+        print("No IEEE citations")
         return(0)
     except:
         return(0)
@@ -428,7 +428,7 @@ def get_num_ieee_citations(citations,link):
 # Number of NON IEEE CITATIONS
 
 def get_num_non_ieee_citations(citations,link):
-    print("Fetching the number of NON-IEEE citations")
+    print("Fetching the number of NON-IEEE citations\n")
     try:
         temp = re.findall(r'\sOther[\s\S]+\s\(\d+\)',citations,re.DOTALL)
         num_non_ieee_citations = re.findall(r'\d+',temp[0])
@@ -436,7 +436,7 @@ def get_num_non_ieee_citations(citations,link):
         return(num_non_ieee_citations )
     except IndexError:
         #errors.append(link)
-        print("Error at the article link : "+ str(link))
+        print("No non-IEEE citations")
         return(0)
     except:
         return(0)
@@ -478,7 +478,7 @@ def extra_citat_info_tag(soup):#Pass the soup of the completely loaded page with
 # Citation Authors
 
 def get_citation_authors(citation_tag):
-    print("Fetching the Citation authors....")
+    #print("Fetching the Citation authors....")
     try:
         citations_authors = re.findall(r'([A-Za-z\s\.\-]+)\,\s',citation_tag,re.DOTALL)
         error_catch = citations_authors[len(citations_authors)-1]#CAtching the error when no authors are present. CAN BE IMPROVED
@@ -502,7 +502,7 @@ def get_citation_authors(citation_tag):
 # Citation Article Name
 
 def get_citation_article_name(citation_tag):
-    print("Fetching the Citation Article name....")
+    #print("Fetching the Citation Article name....")
     try:
         citations_article_name = re.findall(r'\"(.+)\"',citation_tag,re.DOTALL)
         article_name = '"article name":"'+str(citations_article_name[0])+'",'
@@ -514,7 +514,7 @@ def get_citation_article_name(citation_tag):
 # Journal Name
 
 def get_citation_journal(x,name,tree):
-    print("Fetching the Citation Journal Name....")
+    #print("Fetching the Citation Journal Name....")
     try:
         # The journal name is in intalics and is present in a sperate tag
 
@@ -529,7 +529,7 @@ def get_citation_journal(x,name,tree):
 # CITATION VOLUME
 
 def get_citation_vol(citation):
-    print("Fetching the Citation volume no....")
+    #print("Fetching the Citation volume no....")
     try:
         citations_vol = re.findall(r'vol\.\s([0-9A-Za-z\-]+)',citation,re.DOTALL)
         citation_vol = '"vol.": "'+str(citations_vol[0])+'",'
@@ -541,7 +541,7 @@ def get_citation_vol(citation):
 # CITATION PP.
 
 def get_citation_pp(citation):
-    print("Fetching the citation pp. ....")
+    #print("Fetching the citation pp. ....")
     try:
         citations_pp = re.findall(r'pp\.\s([A-Za-z0-9\-]+)',citation,re.DOTALL)
         citation_pp = '"pp.": "'+str(citations_pp[0])+'",'
@@ -553,7 +553,7 @@ def get_citation_pp(citation):
 # CITATION YEAR
 
 def get_citation_year(citation):
-    print("Fetching the Citation year....")
+    #print("Fetching the Citation year....")
     try:
         citations_year = re.findall(r'\,\s([0-9]+)',citation,re.DOTALL)
         citation_year = '"Year": "'+str(citations_year[0])+'",'
@@ -565,7 +565,7 @@ def get_citation_year(citation):
 # CITATION ISSN
 
 def get_citation_issn(citation):
-    print("Fetching the Citationi ISSN ....")
+    #print("Fetching the Citationi ISSN ....")
     try:
         citations_issn = re.findall(r'ISSN\s([0-9\-A-Z]+)',citation,re.DOTALL)
         citation_issn = '"ISSN": "'+str(citations_issn[0])+'",'
@@ -577,7 +577,7 @@ def get_citation_issn(citation):
 # CITATION ISBN
 
 def get_citation_isbn(citation):
-    print("Fetching the Citation ISBN ....")
+    #print("Fetching the Citation ISBN ....")
     try:
         citations_isbn = re.findall(r'ISBN\s([0-9\-A-Z]+)',citation,re.DOTALL)
         citation_isbn = '"ISBN": "'+str(citations_isbn[0])+'"'
@@ -596,11 +596,11 @@ def get_citation(num_citations,name,tree,soup):
 # The citations are first scraped using bs4 using extra_citat_info_tag. Once we get the list of all the posibile values of citations from the soup object, we loop through them.
 # The get_citation_tag is used to get the particular division where the x'th citation is present using css selector
 
-    print("Creating the json_data for the citations ....")
+    print("\nCreating the json_data for the citations :\n")
     global citationCount
     if (name == "nonieee"):
         citationCount = citationCount
-        print(citationCount)
+        #print(citationCount)
     else:
         citationCount = 0
 
@@ -608,6 +608,8 @@ def get_citation(num_citations,name,tree,soup):
     citation_json = '{"'+str(name)+'-citations":['
     citations_extra_info = extra_citat_info_tag(soup)
     for x in range(2,num_citations+2):
+        print("Fetching "+str(name)+" citations")
+        print("Getting citation detail : "+str(x))
         citation = get_citation_tag(x,name,tree) #This gets the complete paragraph of the citation
         cit_author = get_citation_authors(citation)
         cit_article_name = get_citation_article_name(citation)
@@ -645,10 +647,25 @@ def get_citation(num_citations,name,tree,soup):
 
 # Gets the data in json format from  the article url
 
-def get_json_data(metadata,browser,link):
+def get_json_data(metadata,browser,link,article_json_path):
     global citationCount
+    global num_tries
+    global error_file_object
 
-    print("Starting the process to get the information about the article in  json_data")
+    # We are testing the number of times get_json_data is called due to Index Error. Which occurs because the IEEE website blocks us out.
+    num_tries+= 1
+    if(num_tries > 6):
+
+        # Not writing in a descriptive manner, such as Link:-,Path:-. Reaseon:- Maybe in Future I can automate it.
+        # The first line will be the link. Second line --> Path. Followed by "\n".
+        error_file_object.write(str(link))
+        error_file_object.write(str(article_json_path)+str("\n"))
+        print("Error, trying to get the json data from the article link.")
+        print("Scrape this article manually. Check error_file.txt for more info")
+        json_data+= "scrape this manually]}"
+        return(json_data)
+
+    print("Starting the process to get the information about the article in  json format\n")
     json_data="{"
     json_data+= get_issn(metadata) + get_metrics(metadata) +get_doi(metadata)
     json_data+= get_title(metadata)+get_pubTitle(metadata)+get_abstract(metadata)+ get_authors(metadata)+get_keywords(metadata)
@@ -659,33 +676,38 @@ def get_json_data(metadata,browser,link):
     x = check_citation_presence(metadata)
 
     if ( x == False):
-        print("Citation NOT Found")
+        print("Citation NOT Found\n")
         json_data+= "null]}"
         return(json_data)
     else:
 
-            print("Citations Found")
+            print("Citations Found\n")
             soup1 = get_soup(browser)
-            num_citations = soup1.find_all('h2',{'class':'document-ft-section-header ng-binding'})
-            length = len(num_citations) - 1
             try:
+                num_citations = soup1.find_all('h2',{'class':'document-ft-section-header ng-binding'})
+                length = len(num_citations) - 1
                 num_ieee_citations = get_num_ieee_citations(str(num_citations[0].text),link)
                 num_non_ieee_citations = get_num_non_ieee_citations(str(num_citations[length].text),link)
             except IndexError:
-                print("Error at getting json data")
+
+                print("Error at getting json data.Sleeping and changing the browser")
                 if(browser.name == "phantomjs"):
                     browser.quit()
                     time.sleep(180.123)
                     browser = webdriver.Firefox()
                     browser.get(link)
-                    get_json_data(metadata,browser,link)
+                    data = get_json_data(metadata,browser,link,article_json_path)
+                    browser.quit()
+                    return(data)
 
                 else:
                     browser.quit()
                     time.sleep(180.20)
                     browser = webdriver.PhantomJS()
                     browser.get(link)
-                    get_json_data(metadata,browser,link)
+                    data = get_json_data(metadata,browser,link,article_json_path)
+                    browser.quit()
+                    return(data)
 
 
             load_citation(browser,"ieee")
@@ -701,9 +723,9 @@ def get_json_data(metadata,browser,link):
             tree = html.fromstring(str(browser.page_source))
 
             json_data+= get_citation(num_ieee_citations,"ieee",tree,soup)
-            print("IEEE citation data retrieved")
+            print("IEEE citation data retrieved\n")
             json_data+= get_citation(num_non_ieee_citations,"nonieee",tree,soup)
-            print("NON-IEEE citation data retrieved")
+            print("NON-IEEE citation data retrieved\n")
             citationCount = 0
 
             #Final tags of Json Data
@@ -712,65 +734,83 @@ def get_json_data(metadata,browser,link):
 
 # Starts the process of getting the json data from the article
 
-def initialize_article_json_data(link,browser):
+def initialize_article_json_data(link,browser,article_json_path):
 
     load_webpage(link,browser)
-    print("Browser will wait for 30ms for the page to load")
+    print("\nBrowser will wait for 30ms for the page to load\n")
     WebDriverWait(browser,10)
     #Get the JSON DATA to extract the first half
     metadata= get_metadata(browser)
     #Get the json data
-    json_data = get_json_data(metadata,browser,link)
-    if(json_data == str(0)):
-        json_data = get_json_data(metadata,browser,link)
-        return(json_data)
-    else:
-        #ADD A CONDITION HERE. THIS HAPPENS WHEN THERE IS INDEX ERROR
-        return(json_data)
+    json_data = get_json_data(metadata,browser,link,article_json_path)
+
+    return(json_data)
 
 
 # This function reads the article links from the files and initiates the process of getting the json data
 
 def get_article_info(browser):
-    global json_pointer
+    global issue_number
+    global num_tries
+    global article_number
+    article_count = 1
     article_links = []
     browser_count = 0
-    for x in range(json_pointer,len(issue_home_dir)):
-        article_count = 0
+    for x in range(issue_number,len(issue_home_dir)):
 
+        # Reading from the first article link.
+        article_count = 1
 
+        print("------------------------------------------------------------------------------")
         # The path where the article links are stored
         article_home_dir = str(issue_home_dir[x]) + str('/article')
         article_link_file = str(article_home_dir) + str('/article_url.txt')
-        print("Article_pointer:= "+str(x))
+        print("Issue Number:= "+str(x))
+
 
         #Reading the links from the article files
         with open(article_link_file,"r") as content_file:
             print("Reading the article_url from file := " + str(article_link_file))
             article_links = content_file.read().splitlines()
 
+        # If the user wants to resume the script from a particular article number of the issue. He gives that number in
+        # article_number argument. We then loop through the articles until we reach that number i.e the article_link.
+        # The user needs to count the article he wants to continue from. He can do this manually or using only code editors.
         for links in article_links:
+            if(int(article_number) > article_count):
+                article_count+=1
+                continue
+
+            print("\nIssue Number : "+str(x))
+            print("Article Number : "+str(article_count)+str("\n"))
+            article_number = 1
+            num_tries = 0
             if(browser_count == 0):
-                print("Browser: FireFox" )
+                print("\nBrowser: FireFox" )
                 browser = webdriver.Firefox()
                 browser_count = 1
             else:
-                print("Browser : PhantomJS")
+                print("\nBrowser : PhantomJS")
                 browser = webdriver.PhantomJS()
                 browser_count = 0
 
 
-            print("------------------------------------------------------------------------------")
-            print("\nStarting the process to get the json_data from :- "+str(links))
-            print("Reading url from:= " + str(article_link_file))
-            json_data = initialize_article_json_data(str(links),browser)
-
-            article_count+= 1
 
             article_json_folder = str(article_home_dir)+str("/") +str(article_count)
             os.makedirs(article_json_folder,exist_ok = True)
             article_json_path = str(article_json_folder) +str('/') +str(article_count)+str('.json')
-            print("Path of storage : " + str(article_json_path))
+
+            article_count+= 1
+
+
+
+
+            print("\nStarting the process to get the json_data from :- "+str(links)+"\n")
+            print("Reading url from:= " + str(article_link_file)+str("\n"))
+            json_data = initialize_article_json_data(str(links),browser,article_json_path)
+            print("\nPath of storage : " + str(article_json_path)+str("\n"))
+
+
 
             with open(article_json_path,"w+") as data:
                 data.write(json_data)
@@ -779,6 +819,7 @@ def get_article_info(browser):
             browser.quit()
             sleep1 = random.uniform(1.5,2.5)
             sleep1 = sleep1*50.3
+            print("------------------------------------")
             print("Sleeping for : " + str(sleep1))
             time.sleep(sleep1)
             print("I am AWAKE!!")
@@ -806,8 +847,8 @@ def read_directory_path():
 
 def main(url):
 
-    global json_pointer
-    global article_pointer
+    global issue_number
+    global issue_pointer
     global args
     global issue_home_dir
 
@@ -835,9 +876,9 @@ def main(url):
 
 
 
-        if(article_pointer):
+        if(issue_pointer):
 
-            article_pointer = int(args.article_pointer)
+            issue_pointer = int(args.issue_pointer)
             print("-------------------------------------")
             print("Resuming the script")
             print("\nStarting store_article_url()...\n")
@@ -848,11 +889,11 @@ def main(url):
             get_article_info(browser)
             print("------------------Errors--------------------")
 
-        if(json_pointer > -1):
+        if(issue_number > -1):
 
             print("Getting Ready.....")
             #time.sleep(40)
-            json_pointer = int(args.json_pointer)
+            issue_number = int(args.issue_number)
 
             print("---------------------------- GETTING THE JSON DATA --------------------------------------------------")
             print("\nStarting the function get_article_info...\n")
@@ -865,7 +906,9 @@ if __name__ == "__main__":
     global url
     url = 'http://ieeexplore.ieee.org/xpl/tocresult.jsp?isnumber=6536343&punumber=6528086'
 
-
+    # Used to keep track of how many times there is a IndexError at get_json_data. This happens when the IEEE website blocks us out.
+    global num_tries
+    num_tries = 0
 
     connection_timeout = 180
 
@@ -879,15 +922,17 @@ if __name__ == "__main__":
 
     global journal_name
 
-
     # (Don't change). Used to extract the citations.
     global citationCount
     citationCount = 0
 
-    global article_pointer
-    global json_pointer
-    article_pointer = 0
-    json_pointer = 0
+    global issue_pointer
+    global issue_number
+    issue_pointer = 0
+    issue_number = 0
+
+    global article_number
+    article_number = str(1)
 
     #Arguments from terminal
     global parser
@@ -896,14 +941,41 @@ if __name__ == "__main__":
     parser.add_argument("journal_name",help="Enter the journal name")
     parser.add_argument("-url",action = 'store',dest = "url",help = 'Enter the Most recent issue url')
     parser.add_argument("-r",action='store_true',default = False,dest="resume",help="Resumes the script.")
-    parser.add_argument('-sap',action='store',dest = 'article_pointer',help = "Enter the article_pointer number.",type = int)
-    parser.add_argument('-jp',action='store',dest='json_pointer',help="Enter the json pointer. Use when script fails  while collecting article info",type = int)
+    parser.add_argument('-write_article_link',action='store',dest = 'issue_pointer',help = "Enter the issue  number.",type = int)
+    parser.add_argument('-issue_number',action='store',dest='issue_number',help="Enter the json pointer. Use when script fails  while collecting article info",type = int)
+    parser.add_argument('-article_number',action='store',dest='article_number',help="Article Number from which you want to run the script from.")
+
+    args = parser.parse_args()
+
+    # If resume option is selected and neither issue_pointer nor issue_number is givern
+    '''
+    if('-r' in vars(args) and '-sap' not in vars(args)):
+        print("Invalid number of arguments")
+        parser.error(' The -r argument requires  a value of either -sap or -jp ')
+        sys.exit(1)
+
+    if(args.resume and args.issue_pointer and args.json):
+        print("Invalid number of arguments.")
+        print("I am not dumb,you know!! :) ")
+        parser.error('Either the value either for -sap or -jp')
+        sys.exit(1)
+
+    '''
 
     args = parser.parse_args()
     journal_name = args.journal_name
-    article_pointer = args.article_pointer
-    print(type(article_pointer))
-    json_pointer = args.json_pointer
+    issue_pointer = args.issue_pointer
+    issue_number = args.issue_number
+    article_number = args.article_number
+
+    #Creating a error file. This file contains the link of all those articles which have to be scraped manually
+    global error_file_path
+    global error_file_object
+    cwd = os.getcwd()
+    home_file_path = str(cwd)+str("/Scibase/")+str(journal_name)
+    os.makedirs(home_file_path,exist_ok=True)
+    error_file_path = str(home_file_path) + str("/error_file.txt")
+    error_file_object = open(error_file_path,"a")
 
 
     main(url)
