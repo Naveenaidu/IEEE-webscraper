@@ -651,12 +651,16 @@ def get_json_data(metadata,browser,link,article_json_path):
     global citationCount
     global num_tries
     global error_file_object
+    global url
 
     # We are testing the number of times get_json_data is called due to Index Error. Which occurs because the IEEE website blocks us out.
 
 
     print("Starting the process to get the information about the article in  json format\n")
     json_data="{"
+
+    get_url = ('"url":"'+str(url)+'",')
+
     json_data+= get_issn(metadata) + get_metrics(metadata) +get_doi(metadata)
     json_data+= get_title(metadata)+get_pubTitle(metadata)+get_abstract(metadata)+ get_authors(metadata)+get_keywords(metadata)
 
