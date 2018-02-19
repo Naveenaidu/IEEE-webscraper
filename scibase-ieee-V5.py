@@ -880,10 +880,11 @@ def main(url):
         issue_home_dir = read_directory_path()
 
 
+        # This case runs when we want to continue writing the article links. When we do that we dont give issue_number as an input
 
-        if(issue_pointer):
+        if((issue_pointer > -1)and(args.issue_number is None)):
 
-            issue_pointer = int(args.issue_pointer)
+            #issue_pointer = int(args.issue_pointer)
             print("-------------------------------------")
             print("Resuming the script")
             print("\nStarting store_article_url()...\n")
@@ -898,7 +899,7 @@ def main(url):
 
             print("Getting Ready.....")
             #time.sleep(40)
-            issue_number = int(args.issue_number)
+            #issue_number = int(args.issue_number)
 
             print("---------------------------- GETTING THE JSON DATA --------------------------------------------------")
             print("\nStarting the function get_article_info...\n")
@@ -909,7 +910,8 @@ def main(url):
 if __name__ == "__main__":
     #url of the most recent issue of a journal'
     global url
-    url = 'http://ieeexplore.ieee.org/xpl/tocresult.jsp?isnumber=6536343&punumber=6528086'
+    #url = 'http://ieeexplore.ieee.org/xpl/tocresult.jsp?isnumber=6536343&punumber=6528086'
+    url = 'http://ieeexplore.ieee.org/xpl/mostRecentIssue.jsp?punumber=6528086'
 
     # Used to keep track of how many times there is a IndexError at get_json_data. This happens when the IEEE website blocks us out.
     global num_tries
@@ -937,7 +939,7 @@ if __name__ == "__main__":
     issue_number = 0
 
     global article_number
-    article_number = str(1)
+    article_number = int(1)
 
     #Arguments from terminal
     global parser
@@ -967,11 +969,28 @@ if __name__ == "__main__":
 
     '''
 
+    # Issue pointer is used when the issue links are written. But the script failed while writing article links
+    # Issue number and article number is given when the the script fails while collecting the json_data.
+
     args = parser.parse_args()
     journal_name = args.journal_name
     issue_pointer = args.issue_pointer
+    if(issue_pointer is None):
+        issue_pointer = int(0)
+    else:
+        issue_pointer = int(args.issue_pointer)
+
     issue_number = args.issue_number
+    if(issue_number is None):
+        issue_number = int(0)
+    else:
+        issue_number = int(args.issue_number)
+
     article_number = args.article_number
+    if(article_number is None):
+        article_number = int(1)
+    else:
+        article_number = int(args.article_number)
 
     #Creating a error file. This file contains the link of all those articles which have to be scraped manually
     global error_file_path
