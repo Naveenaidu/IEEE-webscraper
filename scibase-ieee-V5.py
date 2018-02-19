@@ -653,17 +653,7 @@ def get_json_data(metadata,browser,link,article_json_path):
     global error_file_object
 
     # We are testing the number of times get_json_data is called due to Index Error. Which occurs because the IEEE website blocks us out.
-    num_tries+= 1
-    if(num_tries > 6):
 
-        # Not writing in a descriptive manner, such as Link:-,Path:-. Reaseon:- Maybe in Future I can automate it.
-        # The first line will be the link. Second line --> Path. Followed by "\n".
-        error_file_object.write(str(link))
-        error_file_object.write(str(article_json_path)+str("\n"))
-        print("Error, trying to get the json data from the article link.")
-        print("Scrape this article manually. Check error_file.txt for more info")
-        json_data+= "scrape this manually]}"
-        return(json_data)
 
     print("Starting the process to get the information about the article in  json format\n")
     json_data="{"
@@ -671,6 +661,21 @@ def get_json_data(metadata,browser,link,article_json_path):
     json_data+= get_title(metadata)+get_pubTitle(metadata)+get_abstract(metadata)+ get_authors(metadata)+get_keywords(metadata)
 
     json_data+='"citations":['
+
+    # We are testing the number of times get_json_data is called due to Index Error. Which occurs because the IEEE website blocks us out.
+
+    num_tries+= 1
+    if(num_tries > 6):
+
+        # Not writing in a descriptive manner, such as Link:-,Path:-. Reaseon:- Maybe in Future I can automate it.
+        # The first line will be the link. Second line --> Path. Followed by "\n".
+        error_file_object.write(str(link)+str("\n"))
+        error_file_object.write(str(article_json_path)+str("\n\n"))
+        print("Error, trying to get the json data from the article link.")
+        print("Scrape this article manually. Check error_file.txt for more info")
+        json_data+= "scrape this manually]}"
+        time.sleep(600)
+        return(json_data)
 
     x = False
     x = check_citation_presence(metadata)
@@ -765,7 +770,7 @@ def get_article_info(browser):
         # The path where the article links are stored
         article_home_dir = str(issue_home_dir[x]) + str('/article')
         article_link_file = str(article_home_dir) + str('/article_url.txt')
-        print("Issue Number:= "+str(x))
+        print("Issue Number:= "+str(x+1))
 
 
         #Reading the links from the article files
