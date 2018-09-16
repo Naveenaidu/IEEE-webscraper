@@ -2,6 +2,6 @@
 
 # Things to do
 - [ ] Write the Summary along with the working video.
-- [ ] Sort the scripts in proper folder.
-- [ ] Remove reduntant Scripts.
-- [ ] Change the version number.
+- [x] Sort the scripts in proper folder.
+- [x] Remove reduntant Scripts.
+- [x] Change the version number.
