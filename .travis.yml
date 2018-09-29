@@ -1,0 +1,17 @@
+language: python
+python:
+  - "3.5"
+  - "3.6"
+
+install:
+  - pip install requests
+  - pip install beautifulsoup4
+  - pip install coala
+  - pip install coala-bears
+  - pip install selenium
+  - pip install lxml
+  - pip install json
+
+scriptsi:
+  - echo "Executing coala"
+  - coala --non-interactive -V    
