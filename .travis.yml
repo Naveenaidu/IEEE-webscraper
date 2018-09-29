@@ -10,7 +10,6 @@ install:
   - pip install coala-bears
   - pip install selenium
   - pip install lxml
-  - pip install json
 
 scriptsi:
   - echo "Executing coala"
