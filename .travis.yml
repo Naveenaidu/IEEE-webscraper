@@ -11,6 +11,6 @@ install:
   - pip install selenium
   - pip install lxml
 
-scriptsi:
+script:
   - echo "Executing coala"
   - coala --non-interactive -V    
